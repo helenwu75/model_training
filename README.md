@@ -1,14 +1,41 @@
-# Feature Importance Analysis for Prediction Market Accuracy
+# Polymarket Election Prediction Analysis
 
-This repository contains a comprehensive suite of tools for analyzing the importance of various features in determining prediction market accuracy for election forecasting. It implements a multi-model ensemble approach to identify key factors that influence prediction market performance.
+This repository contains a comprehensive analysis of Polymarket election prediction markets, examining factors that contribute to market accuracy and developing a framework for evaluating prediction quality.
 
-## Overview
+## Project Structure
 
-The analysis framework integrates three complementary models:
+The project is organized into multiple analysis components:
+polymarket-analysis/
+├── modified_analysis/ # Preprocessed data files
+├── feature_importance_results/ # Feature importance analysis
+├── feature_relationships/ # Feature correlation and interaction analysis
+├── prediction_error_analysis/ # Model error analysis
+├── actionable_insights/ # Practical scoring system and thresholds
+├── descriptive_stats/ # Descriptive statistics for markets and features
+└── scripts/ # Analysis scripts
 
-- **Gradient Boosting**: Excellent at capturing non-linear relationships
-- **Logistic Regression with L1 regularization**: Creates sparse, interpretable models
-- **Random Forest**: Robust ensemble method with different feature importance metrics
+## Key Findings
+
+- Market accuracy is strongly influenced by price dynamics (price_range, price_fluctuations, price_volatility)
+- High trader participation (unique_traders_count) correlates with prediction quality
+- Markets with balanced trading (buy_sell_ratio, trader_concentration) tend to have more accurate predictions
+- Late-stage market behavior (volume_acceleration, final_week_momentum) significantly impacts prediction accuracy
+
+## Usage
+
+1. Data preprocessing: `python data_cleaning.py`
+2. Feature importance analysis: `python feature_analysis.py`
+3. Feature relationship analysis: `python feature_relationships.py`
+4. Prediction error analysis: `python prediction_error_analysis.py`
+5. Actionable insights: `python actionable_insights.py`
+
+## Models
+
+The analysis employs multiple models to ensure robust feature importance assessment:
+
+- Random Forest (best performer: RMSE=0.094, R²=0.357): Robust ensemble method with different feature importance metrics
+- Gradient Boosting (RMSE=0.102, R²=0.242): Capturing non-linear relationships
+- Lasso Regression (RMSE=0.105, R²=0.201): Creates sparse, interpretable models
 
 These models are used to predict both:
 
