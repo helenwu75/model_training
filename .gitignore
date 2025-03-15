@@ -1,17 +1,45 @@
-# Environment variables
-.env
+# Data directories and large files
+data/
+*.csv
+*.parquet
+*.npy
+*.npz
+*.joblib
+*.pkl
+*.h5
+*.hdf5
+*.feather
+*.png
 
-# Python
+# Modified analysis directory (contains preprocessed data)
+modified_analysis/
+
+# Feature importance results (can be regenerated)
+feature_importance_results/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Python cache files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.manifest
+*.spec
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Distribution / packaging
+build/
 develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
 lib/
 lib64/
 parts/
@@ -22,28 +50,30 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-.venv/
+# Log files
+*.log
+logs/
+.history/
+
+# Environment files
+.env
+.venv
+env/
 venv/
 ENV/
+env.bak/
+venv.bak/
+.python-version
 
-# Data
-*.csv
-*.xtml
-.xtml
-examples/*
-summary_stats_results/
-test_scripts/
-data/
-summary_stats_results/
-
-# IDE
+# IDE specific files
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS
+*~
+.spyderproject
+.spyproject
+.ropeproject
 .DS_Store
 .DS_Store?
 ._*
@@ -51,5 +81,18 @@ summary_stats_results/
 .Trashes
 ehthumbs.db
 Thumbs.db
-analysis_results/election_metrics_results_edit.xml
-data_files/analysis_results/election_metrics_results_edit.xml
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+*.cover
+
+# Exclude all CSVs
+*.csv
+
+# But include these specific files
+!transformed_feature_names.csv
+!feature_metadata.csv
