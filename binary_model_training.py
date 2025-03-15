@@ -18,6 +18,9 @@ The results are saved to a directory named model_results with a timestamped subd
 Usage: python binary_model_training.py
 
 Note: Make sure to run data_cleaning.py first to generate the preprocessed files
+
+Author: Helen Wu
+Last updated: 2025-03-15
 """
 
 import numpy as np

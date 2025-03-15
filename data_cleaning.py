@@ -1,3 +1,37 @@
+"""
+Data Cleaning and Preparation for Election Prediction Analysis
+
+This script loads the final election results dataset and performs the following steps:
+1. Load the data
+2. Identify key identifier columns to preserve
+3. Define target variables
+4. Keep only rows where all target variables are not NaN
+5. Exclude features that would cause leakage or aren't relevant for modeling
+6. Define the desired features (as specified in your requirements)
+7. Check missing values percentage
+8. Drop features with too many missing values (e.g., >70%)
+9. Create two dataframes:
+   - complete_df: contains ALL columns including identifiers
+   - modeling_df: contains only features for modeling + targets
+10. Handle missing values in the modeling features
+11. Check class distribution for prediction_correct
+12. Split the data into features and targets
+13. Split the data into train and test sets
+14. Save indexes for traceability
+15. Prepare numerical and categorical preprocessors
+16. Apply preprocessing to get a fully numerical representation
+17. Apply SMOTE for classification task if needed
+18. Save the processed data and preprocessor for future use
+
+The cleaned and processed data is saved to the 'modified_analysis' directory.
+
+Note: This script assumes that the 'final_election_results.csv' file is available in the current directory.
+
+Usage: python data_cleaning.py
+
+Author: Helen Wu
+Last updated: 2025-03-15
+"""
 import pandas as pd
 import numpy as np
 import os
