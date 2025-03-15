@@ -1,0 +1,39 @@
+feature,importance
+price_range,0.6713321063874079
+price_volatility,0.07934405906560651
+trading_continuity,0.06592280398926006
+event_country_Other Countries,0.035105867111472316
+final_week_momentum,0.018165812576591115
+unique_traders_count,0.01621723839692763
+comment_per_trader,0.015207602726335933
+price_fluctuations,0.013973122511737435
+event_country_Canada,0.009803428388033188
+trader_concentration,0.00864486142142538
+event_country_Germany,0.008584193803800154
+two_way_traders_ratio,0.00855355278900189
+late_stage_participation,0.00794688072778352
+event_electionType_Presidential,0.0075406380624907544
+market_duration_days,0.006411305779528963
+event_country_Latin America,0.004870003509337755
+comment_per_vol,0.004436412779634895
+buy_sell_ratio,0.0038353201994561895
+event_electionType_Parliamentary,0.0036326557887189424
+event_electionType_Prime Minister,0.0035512734427201854
+trading_frequency,0.0020566415106265273
+volumeNum,0.0012178816848640586
+event_commentCount,0.001058690308355292
+new_trader_influx,0.0010226902812542583
+volume_acceleration,0.0007584657274043475
+event_country_United States,0.00039409473553741906
+event_country_Brazil,0.00022081807889046045
+trader_to_trade_ratio,8.638215296073463e-05
+event_electionType_Presidential Detail,4.011654016882802e-05
+event_electionType_Regional Election,3.31241785575944e-05
+event_country_Ireland,3.195534410958631e-05
+event_country_United Kingdom,0.0
+event_electionType_Balance of Power,0.0
+event_electionType_Other Election,0.0
+event_country_Eastern Europe,0.0
+event_electionType_Presidential Primary,0.0
+event_electionType_Senate,0.0
+event_electionType_Vice Presidential,0.0
