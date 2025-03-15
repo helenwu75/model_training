@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from sklearn.metrics import precision_recall_curve, average_precision_score, roc_auc_score, roc_curve
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
@@ -10,64 +11,94 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 import joblib
 import shap
+from datetime import datetime
+
+# Create output directory for results
+RESULTS_DIR = "model_results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
+print(f"Results will be saved to: {RESULTS_DIR}")
+
+# Create a timestamp for this run
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+print(f"Analysis started at: {timestamp}")
+
+# Path to modified analysis folder
+MODIFIED_ANALYSIS_DIR = "modified_analysis"
 
 # 1. Load the preprocessed data
-X_train = np.load('X_train_preprocessed.npy')
-X_test = np.load('X_test_preprocessed.npy')
-y_train_correct = np.load('y_train_prediction_correct.npy')
-y_test_correct = np.load('y_test_prediction_correct.npy')
+print("Loading preprocessed data...")
+try:
+    X_train = np.load(os.path.join(MODIFIED_ANALYSIS_DIR, 'X_train_preprocessed.npy'))
+    X_test = np.load(os.path.join(MODIFIED_ANALYSIS_DIR, 'X_test_preprocessed.npy'))
+    y_train_correct = np.load(os.path.join(MODIFIED_ANALYSIS_DIR, 'y_train_prediction_correct.npy'))
+    y_test_correct = np.load(os.path.join(MODIFIED_ANALYSIS_DIR, 'y_test_prediction_correct.npy'))
+    
+    # Check if SMOTE-balanced data exists
+    smote_path = os.path.join(MODIFIED_ANALYSIS_DIR, 'X_train_smote.npy')
+    if os.path.exists(smote_path):
+        X_train_smote = np.load(smote_path)
+        y_train_correct_smote = np.load(os.path.join(MODIFIED_ANALYSIS_DIR, 'y_train_prediction_correct_smote.npy'))
+        print("Loaded SMOTE-balanced data.")
+    else:
+        print("SMOTE-balanced data not found. Using original training data.")
+        X_train_smote = X_train
+        y_train_correct_smote = y_train_correct
+    
+    # Load feature names
+    feature_names_path = os.path.join(MODIFIED_ANALYSIS_DIR, 'transformed_feature_names.csv')
+    if os.path.exists(feature_names_path):
+        feature_names = pd.read_csv(feature_names_path)['feature'].tolist()
+    else:
+        print("Feature names file not found. Using generic feature names.")
+        feature_names = [f"feature_{i}" for i in range(X_train.shape[1])]
+        
+    print(f"Loaded data with {X_train.shape[1]} features, {len(y_train_correct)} training samples, and {len(y_test_correct)} test samples.")
+    
+except Exception as e:
+    print(f"Error loading data: {e}")
+    print("Please make sure you've run data_cleaning.py first to generate the preprocessed files.")
+    exit(1)
 
-# Load SMOTE-balanced data for classification
-X_train_smote = np.load('X_train_smote.npy')
-y_train_correct_smote = np.load('y_train_prediction_correct_smote.npy')
+# 2. Define and train the classification models
+print("\nTraining classification models...")
 
-# Load feature names for interpretation
-feature_names = pd.read_csv('transformed_feature_names.csv')['feature'].tolist()
-
-# 2. Define and train the four classification models
-print("Training classification models...")
-
-# Model 1: Random Forest
-rf_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
-rf_model.fit(X_train_smote, y_train_correct_smote)
-
-# Model 2: Logistic Regression with L1 regularization
-# Using C=0.1 for stronger regularization, can be tuned based on results
-lr_l1_model = LogisticRegression(penalty='l1', solver='liblinear', C=0.1, random_state=42)
-lr_l1_model.fit(X_train_smote, y_train_correct_smote)
-
-# Model 3: Gradient Boosting
-gb_model = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
-gb_model.fit(X_train_smote, y_train_correct_smote)
-
-# Model 4: PCA + Logistic Regression
-# Using PCA to reduce to approximately 95% explained variance
-pca_lr_pipeline = Pipeline([
-    ('pca', PCA(n_components=0.95, random_state=42)),
-    ('lr', LogisticRegression(random_state=42))
-])
-pca_lr_pipeline.fit(X_train_smote, y_train_correct_smote)
-
-# Store models in a dictionary for evaluation
-models = {
-    'Random Forest': rf_model,
-    'Logistic Regression (L1)': lr_l1_model,
-    'Gradient Boosting': gb_model,
-    'PCA + Logistic Regression': pca_lr_pipeline
+# Dictionary to store models and their parameters
+models_config = {
+    'Random Forest': {
+        'model': RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1),
+        'params': {'n_estimators': 100, 'max_depth': 10}
+    },
+    'Logistic Regression (L1)': {
+        'model': LogisticRegression(penalty='l1', solver='liblinear', C=0.1, random_state=42),
+        'params': {'penalty': 'l1', 'C': 0.1}
+    },
+    'Gradient Boosting': {
+        'model': GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=42),
+        'params': {'n_estimators': 100, 'learning_rate': 0.1}
+    },
+    'PCA + Logistic Regression': {
+        'model': Pipeline([
+            ('pca', PCA(n_components=0.95, random_state=42)),
+            ('lr', LogisticRegression(random_state=42))
+        ]),
+        'params': {'pca__n_components': 0.95}
+    }
 }
 
-# 3. Evaluate all models
+# Train all models and collect results
 results = {}
-for name, model in models.items():
+for name, config in models_config.items():
+    print(f"\nTraining {name}...")
+    model = config['model']
+    
+    # Train on SMOTE-balanced data (or original if SMOTE not available)
+    model.fit(X_train_smote, y_train_correct_smote)
+    
     # Predict on test set
     y_pred = model.predict(X_test)
     
     # Calculate probabilities for ROC and PR curves
-    if hasattr(model, 'predict_proba'):
-        y_proba = model.predict_proba(X_test)[:, 1]
-    else:
-        # For pipeline or other models
-        y_proba = model.predict_proba(X_test)[:, 1]
+    y_proba = model.predict_proba(X_test)[:, 1]
     
     # Compute metrics
     accuracy = accuracy_score(y_test_correct, y_pred)
@@ -88,50 +119,50 @@ for name, model in models.items():
         'y_proba': y_proba
     }
     
-    print(f"\n{name} Results:")
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"ROC AUC: {roc_auc:.4f}")
-    print(f"Average Precision: {avg_precision:.4f}")
-    print(f"Confusion Matrix:\n{conf_matrix}")
+    print(f"  Accuracy: {accuracy:.4f}")
+    print(f"  ROC AUC: {roc_auc:.4f}")
+    print(f"  Average Precision: {avg_precision:.4f}")
+    print(f"  Confusion Matrix:\n{conf_matrix}")
     
     # Show classification report
-    print("Classification Report:")
+    print("  Classification Report:")
     cls_report = pd.DataFrame(report).T
     print(cls_report)
 
-# 4. Compare models
+# 3. Compare models
 # Create a comparison dataframe
-comparison_df = pd.DataFrame({
-    'Model': list(results.keys()),
-    'Accuracy': [results[model]['accuracy'] for model in results],
-    'ROC AUC': [results[model]['roc_auc'] for model in results],
-    'Avg Precision': [results[model]['avg_precision'] for model in results]
-})
-
-# Add F1 scores - handle both string and numeric keys
-for model in results:
-    report = results[model]['classification_report']
-    # Check what keys are in the report (excluding 'accuracy', 'macro avg', etc.)
-    class_keys = [key for key in report.keys() if key not in ['accuracy', 'macro avg', 'weighted avg']]
+comparison_data = []
+for model_name, result in results.items():
+    model_data = {
+        'Model': model_name,
+        'Accuracy': result['accuracy'],
+        'ROC AUC': result['roc_auc'],
+        'Avg Precision': result['avg_precision']
+    }
     
-    # Sort class keys if they're numeric
-    try:
-        class_keys = sorted([float(k) for k in class_keys])
-        class_keys = [str(k) for k in class_keys]  # Convert back to strings
-    except:
-        # If conversion fails, keep them as they are
-        pass
+    # Add F1 scores
+    report = result['classification_report']
+    # Get all class labels (0, 1) properly
+    class_labels = [str(i) for i in range(len(report) - 3)]  # Exclude 'accuracy', 'macro avg', 'weighted avg'
     
-    # Assuming binary classification, with class_keys[0] as negative and class_keys[1] as positive
-    if len(class_keys) >= 2:
-        comparison_df.loc[comparison_df['Model'] == model, 'F1 (Incorrect)'] = report[class_keys[0]]['f1-score']
-        comparison_df.loc[comparison_df['Model'] == model, 'F1 (Correct)'] = report[class_keys[1]]['f1-score']
-    else:
-        # Fallback if we don't have two classes
-        comparison_df.loc[comparison_df['Model'] == model, 'F1 (Incorrect)'] = np.nan
-        comparison_df.loc[comparison_df['Model'] == model, 'F1 (Correct)'] = np.nan
+    if len(class_labels) >= 2:
+        model_data['F1 (Incorrect)'] = report[class_labels[0]]['f1-score']
+        model_data['F1 (Correct)'] = report[class_labels[1]]['f1-score']
+    
+    comparison_data.append(model_data)
 
-# 5. Plot ROC curves for all models
+comparison_df = pd.DataFrame(comparison_data)
+comparison_df = comparison_df.sort_values('ROC AUC', ascending=False)
+
+print("\nModel Comparison:")
+print(comparison_df)
+
+# Save comparison to CSV
+comparison_path = os.path.join(RESULTS_DIR, 'model_comparison.csv')
+comparison_df.to_csv(comparison_path, index=False)
+print(f"Model comparison saved to {comparison_path}")
+
+# 4. Plot ROC curves for all models
 plt.figure(figsize=(10, 8))
 for name in results:
     fpr, tpr, _ = roc_curve(y_test_correct, results[name]['y_proba'])
@@ -142,29 +173,51 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.title('ROC Curves for Classification Models')
 plt.legend()
-plt.savefig('model_comparison_roc_curves.png')
+plt.grid(True, alpha=0.3)
+roc_path = os.path.join(RESULTS_DIR, 'model_comparison_roc_curves.png')
+plt.savefig(roc_path, dpi=300)
+plt.close()
+print(f"ROC curves saved to {roc_path}")
 
-# 6. Feature importance analysis
-# 6.1 Random Forest feature importance
-if 'Random Forest' in results:
+# 5. Feature importance analysis - split into separate functions for better organization
+def analyze_rf_importance(model, feature_names):
+    """Analyze Random Forest feature importance"""
+    if not isinstance(model, RandomForestClassifier):
+        print("Model is not a Random Forest. Skipping this analysis.")
+        return None
+    
+    print("\nAnalyzing Random Forest feature importance...")
     rf_importances = pd.DataFrame({
         'feature': feature_names,
-        'importance': results['Random Forest']['model'].feature_importances_
+        'importance': model.feature_importances_
     }).sort_values('importance', ascending=False)
     
     plt.figure(figsize=(12, 8))
     sns.barplot(x='importance', y='feature', data=rf_importances.head(20))
     plt.title('Top 20 Features - Random Forest')
     plt.tight_layout()
-    plt.savefig('rf_feature_importance.png')
+    output_path = os.path.join(RESULTS_DIR, 'rf_feature_importance.png')
+    plt.savefig(output_path, dpi=300)
+    plt.close()
     
     # Save importance scores
-    rf_importances.to_csv('rf_feature_importance.csv', index=False)
+    rf_importances.to_csv(os.path.join(RESULTS_DIR, 'rf_feature_importance.csv'), index=False)
+    print(f"Random Forest feature importance saved to {RESULTS_DIR}")
+    
+    return rf_importances
 
-# 6.2 Logistic Regression coefficients (for L1 model)
-if 'Logistic Regression (L1)' in results:
-    # Get non-zero coefficients for L1 regression
-    coef = results['Logistic Regression (L1)']['model'].coef_[0]
+def analyze_logistic_coefficients(model, feature_names):
+    """Analyze Logistic Regression coefficients"""
+    if not isinstance(model, LogisticRegression):
+        if isinstance(model, Pipeline) and isinstance(model.named_steps.get('lr'), LogisticRegression):
+            print("Model is a Pipeline with Logistic Regression. Extracting coefficients...")
+            model = model.named_steps['lr']
+        else:
+            print("Model is not a Logistic Regression. Skipping this analysis.")
+            return None
+    
+    print("\nAnalyzing Logistic Regression coefficients...")
+    coef = model.coef_[0]
     l1_importance = pd.DataFrame({
         'feature': feature_names,
         'coefficient': coef
@@ -178,31 +231,51 @@ if 'Logistic Regression (L1)' in results:
     plt.figure(figsize=(12, 8))
     top_coefs = l1_importance.head(20)
     sns.barplot(x='coefficient', y='feature', data=top_coefs)
-    plt.title('Top 20 Features - Logistic Regression (L1)')
+    plt.title('Top 20 Features - Logistic Regression')
     plt.tight_layout()
-    plt.savefig('l1_logistic_coefficients.png')
+    output_path = os.path.join(RESULTS_DIR, 'l1_logistic_coefficients.png')
+    plt.savefig(output_path, dpi=300)
+    plt.close()
     
     # Save coefficients
-    l1_importance.to_csv('l1_logistic_coefficients.csv', index=False)
+    l1_importance.to_csv(os.path.join(RESULTS_DIR, 'l1_logistic_coefficients.csv'), index=False)
+    print(f"Logistic Regression coefficients saved to {RESULTS_DIR}")
+    
+    return l1_importance
 
-# 6.3 Gradient Boosting feature importance
-if 'Gradient Boosting' in results:
+def analyze_gb_importance(model, feature_names):
+    """Analyze Gradient Boosting feature importance"""
+    if not isinstance(model, GradientBoostingClassifier):
+        print("Model is not a Gradient Boosting. Skipping this analysis.")
+        return None
+    
+    print("\nAnalyzing Gradient Boosting feature importance...")
     gb_importances = pd.DataFrame({
         'feature': feature_names,
-        'importance': results['Gradient Boosting']['model'].feature_importances_
+        'importance': model.feature_importances_
     }).sort_values('importance', ascending=False)
     
     plt.figure(figsize=(12, 8))
     sns.barplot(x='importance', y='feature', data=gb_importances.head(20))
     plt.title('Top 20 Features - Gradient Boosting')
     plt.tight_layout()
-    plt.savefig('gb_feature_importance.png')
+    output_path = os.path.join(RESULTS_DIR, 'gb_feature_importance.png')
+    plt.savefig(output_path, dpi=300)
+    plt.close()
     
-    gb_importances.to_csv('gb_feature_importance.csv', index=False)
+    gb_importances.to_csv(os.path.join(RESULTS_DIR, 'gb_feature_importance.csv'), index=False)
+    print(f"Gradient Boosting feature importance saved to {RESULTS_DIR}")
+    
+    return gb_importances
 
-# 6.4 PCA Component Analysis (for PCA+LR model)
-if 'PCA + Logistic Regression' in results:
-    pca = results['PCA + Logistic Regression']['model'].named_steps['pca']
+def analyze_pca_components(model, feature_names):
+    """Analyze PCA components and their loadings"""
+    if not isinstance(model, Pipeline) or not isinstance(model.named_steps.get('pca'), PCA):
+        print("Model is not a PCA-based pipeline. Skipping this analysis.")
+        return
+    
+    print("\nAnalyzing PCA components...")
+    pca = model.named_steps['pca']
     
     # Get explained variance ratio
     explained_variance = pca.explained_variance_ratio_
@@ -212,7 +285,9 @@ if 'PCA + Logistic Regression' in results:
     plt.xlabel('Principal Component')
     plt.ylabel('Explained Variance Ratio')
     plt.title('PCA Explained Variance')
-    plt.savefig('pca_explained_variance.png')
+    output_path = os.path.join(RESULTS_DIR, 'pca_explained_variance.png')
+    plt.savefig(output_path, dpi=300)
+    plt.close()
     
     # Analyze component loadings for top components
     n_components = min(5, pca.n_components_)  # Show top 5 or fewer
@@ -235,50 +310,224 @@ if 'PCA + Logistic Regression' in results:
     
     # Combine all components' top loadings
     all_top_loadings = pd.concat(top_loadings)
-    all_top_loadings.to_csv('pca_top_loadings.csv', index=False)
+    all_top_loadings.to_csv(os.path.join(RESULTS_DIR, 'pca_top_loadings.csv'), index=False)
+    print(f"PCA component analysis saved to {RESULTS_DIR}")
 
-# 7. SHAP analysis for best model
-# Determine best model based on ROC AUC
+def perform_shap_analysis(model, model_name, X_train, X_test, feature_names):
+    """Perform SHAP analysis for the model"""
+    print(f"\nPerforming SHAP analysis for {model_name}...")
+    
+    try:
+        # For tree-based models
+        if isinstance(model, (RandomForestClassifier, GradientBoostingClassifier)):
+            # Use a subset of training data for explainer initialization to improve performance
+            train_sample = X_train[np.random.choice(X_train.shape[0], min(1000, X_train.shape[0]), replace=False)]
+            
+            # Use TreeExplainer for tree-based models
+            explainer = shap.TreeExplainer(model)
+            
+            # Use a subset of test data for SHAP values calculation
+            test_sample = X_test[:min(100, X_test.shape[0])]
+            shap_values = explainer.shap_values(test_sample)
+            
+            # If shap_values is a list (for multi-class), get the values for class 1
+            if isinstance(shap_values, list):
+                shap_values = shap_values[1]
+            
+            # Create SHAP summary plot
+            plt.figure(figsize=(12, 10))
+            shap.summary_plot(
+                shap_values, 
+                test_sample, 
+                feature_names=feature_names, 
+                max_display=20,
+                show=False  # Don't show, just save
+            )
+            output_path = os.path.join(RESULTS_DIR, f'shap_summary_{model_name.replace(" ", "_").lower()}.png')
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            # Create SHAP dependence plots for top features
+            # Get mean absolute SHAP values for feature importance ranking
+            mean_abs_shap = np.abs(shap_values).mean(0)
+            feature_importance = pd.DataFrame({
+                'feature': feature_names,
+                'importance': mean_abs_shap
+            }).sort_values('importance', ascending=False)
+            
+            # Save SHAP-based feature importance
+            feature_importance.to_csv(
+                os.path.join(RESULTS_DIR, f'shap_importance_{model_name.replace(" ", "_").lower()}.csv'), 
+                index=False
+            )
+            
+            print(f"SHAP analysis for {model_name} completed and saved to {RESULTS_DIR}")
+            return feature_importance
+            
+        else:
+            # For non-tree-based models, use KernelExplainer but with smaller samples
+            # Sample both training and test data for performance
+            train_sample = X_train[np.random.choice(X_train.shape[0], min(500, X_train.shape[0]), replace=False)]
+            test_sample = X_test[np.random.choice(X_test.shape[0], min(50, X_test.shape[0]), replace=False)]
+            
+            # Create background distribution with kmeans
+            background = shap.kmeans(train_sample, k=min(50, len(train_sample)))
+            
+            # Use KernelExplainer
+            explainer = shap.KernelExplainer(
+                model.predict_proba, 
+                background
+            )
+            
+            # Calculate SHAP values (only for a small number of test samples)
+            shap_values = explainer.shap_values(test_sample[:20])
+            
+            # If SHAP values is a list, get values for class 1 (positive)
+            if isinstance(shap_values, list):
+                shap_values = shap_values[1]
+            
+            # Create and save SHAP summary plot
+            plt.figure(figsize=(12, 10))
+            shap.summary_plot(
+                shap_values, 
+                test_sample[:20], 
+                feature_names=feature_names, 
+                max_display=20,
+                show=False
+            )
+            output_path = os.path.join(RESULTS_DIR, f'shap_summary_{model_name.replace(" ", "_").lower()}.png')
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print(f"SHAP analysis for {model_name} completed and saved to {RESULTS_DIR}")
+            
+            # Return feature importance based on mean absolute SHAP values
+            mean_abs_shap = np.abs(shap_values).mean(0)
+            feature_importance = pd.DataFrame({
+                'feature': feature_names,
+                'importance': mean_abs_shap
+            }).sort_values('importance', ascending=False)
+            
+            feature_importance.to_csv(
+                os.path.join(RESULTS_DIR, f'shap_importance_{model_name.replace(" ", "_").lower()}.csv'), 
+                index=False
+            )
+            
+            return feature_importance
+            
+    except Exception as e:
+        print(f"Error in SHAP analysis for {model_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# 6. Perform feature importance analysis for each model
+print("\nPerforming feature importance analysis...")
+
+# Get the best model based on ROC AUC
 best_model_name = comparison_df.iloc[0]['Model']
+print(f"Best model based on ROC AUC: {best_model_name}")
+
+# Analyze Random Forest if available
+if 'Random Forest' in results:
+    rf_importance = analyze_rf_importance(results['Random Forest']['model'], feature_names)
+
+# Analyze Logistic Regression if available
+if 'Logistic Regression (L1)' in results:
+    lr_importance = analyze_logistic_coefficients(results['Logistic Regression (L1)']['model'], feature_names)
+
+# Analyze Gradient Boosting if available
+if 'Gradient Boosting' in results:
+    gb_importance = analyze_gb_importance(results['Gradient Boosting']['model'], feature_names)
+
+# Analyze PCA components if available
+if 'PCA + Logistic Regression' in results:
+    analyze_pca_components(results['PCA + Logistic Regression']['model'], feature_names)
+
+# 7. Perform SHAP analysis for best model only (to save time and avoid errors)
 best_model = results[best_model_name]['model']
+shap_importance = perform_shap_analysis(best_model, best_model_name, X_train, X_test, feature_names)
 
-print(f"\nPerforming SHAP analysis for best model: {best_model_name}")
+# 8. Compare feature importance rankings across methods
+importance_methods = {}
 
-# For tree-based models
-if best_model_name in ['Random Forest', 'Gradient Boosting']:
-    explainer = shap.TreeExplainer(best_model)
-    shap_values = explainer.shap_values(X_test)
-    
-    # If shap_values is a list (for multi-class), get the values for class 1
-    if isinstance(shap_values, list):
-        shap_values = shap_values[1]
-    
-    plt.figure(figsize=(12, 10))
-    shap.summary_plot(shap_values, X_test, feature_names=feature_names, max_display=20)
-    plt.savefig(f'shap_summary_{best_model_name.replace(" ", "_").lower()}.png')
-    
-    # SHAP force plot for a few examples
-    plt.figure(figsize=(20, 3))
-    shap.initjs()
-    force_plot = shap.force_plot(explainer.expected_value, 
-                              shap_values[:5], 
-                              X_test[:5], 
-                              feature_names=feature_names)
-    shap.save_html(f'shap_force_plot_{best_model_name.replace(" ", "_").lower()}.html', force_plot)
-    
-else:
-    # For linear models or pipelines
-    explainer = shap.KernelExplainer(best_model.predict_proba, 
-                                   shap.kmeans(X_train_smote, 50))
-    shap_values = explainer.shap_values(X_test[:100])  # Using subset for computational efficiency
-    
-    plt.figure(figsize=(12, 10))
-    shap.summary_plot(shap_values[1], X_test[:100], feature_names=feature_names, max_display=20)
-    plt.savefig(f'shap_summary_{best_model_name.replace(" ", "_").lower()}.png')
+# Collect available importance rankings
+if 'Random Forest' in results and 'rf_importance' in locals():
+    importance_methods['Random Forest'] = rf_importance
 
-# 8. Save all models
+if 'Gradient Boosting' in results and 'gb_importance' in locals():
+    importance_methods['Gradient Boosting'] = gb_importance
+
+if 'Logistic Regression (L1)' in results and 'lr_importance' in locals():
+    # For logistic regression, use absolute coefficient value
+    lr_imp = lr_importance.copy()
+    lr_imp = lr_imp[['feature', 'abs_coef']].rename(columns={'abs_coef': 'importance'})
+    importance_methods['Logistic Regression'] = lr_imp
+
+if 'shap_importance' in locals() and shap_importance is not None:
+    importance_methods['SHAP'] = shap_importance
+
+# If we have multiple methods, create a comparison
+if len(importance_methods) > 1:
+    print("\nComparing feature importance rankings across methods...")
+    
+    # Get top 15 features from each method
+    top_features = {}
+    for method, imp_df in importance_methods.items():
+        top_features[method] = imp_df.head(15)['feature'].tolist()
+    
+    # Find features that appear in multiple methods
+    all_top_features = []
+    for method, features in top_features.items():
+        all_top_features.extend(features)
+    
+    # Count frequency of each feature
+    from collections import Counter
+    feature_counts = Counter(all_top_features)
+    
+    # Features that appear in multiple methods
+    common_features = [feature for feature, count in feature_counts.items() if count > 1]
+    
+    print(f"Features important across multiple methods: {len(common_features)}")
+    for feature in common_features:
+        methods = [method for method, features in top_features.items() if feature in features]
+        print(f"  {feature}: {', '.join(methods)}")
+    
+    # Create a dataframe showing rankings across methods
+    rankings = {}
+    for method, imp_df in importance_methods.items():
+        # Get ranks (1-based)
+        imp_df['rank'] = imp_df['importance'].rank(ascending=False)
+        # Create a mapping from feature to rank
+        rankings[method] = dict(zip(imp_df['feature'], imp_df['rank']))
+    
+    # Create comparison dataframe for common features
+    comparison_rows = []
+    for feature in common_features:
+        row = {'feature': feature}
+        for method in rankings:
+            row[f"{method} rank"] = rankings[method].get(feature, np.nan)
+            row[f"{method} importance"] = importance_methods[method].set_index('feature').loc[feature, 'importance'] if feature in importance_methods[method]['feature'].values else np.nan
+        comparison_rows.append(row)
+    
+    # Create dataframe and sort by frequency of appearance
+    importance_comparison = pd.DataFrame(comparison_rows)
+    importance_comparison['methods_count'] = importance_comparison.apply(
+        lambda row: sum(1 for col in row.index if 'rank' in col and not pd.isna(row[col])),
+        axis=1
+    )
+    importance_comparison = importance_comparison.sort_values(['methods_count', 'feature'], ascending=[False, True])
+    
+    # Save comparison
+    importance_comparison.to_csv(os.path.join(RESULTS_DIR, 'feature_importance_comparison.csv'), index=False)
+    print(f"Feature importance comparison saved to {os.path.join(RESULTS_DIR, 'feature_importance_comparison.csv')}")
+
+# 9. Save all models
 for name, model_dict in results.items():
     model = model_dict['model']
-    joblib.dump(model, f'{name.replace(" ", "_").lower()}_model.joblib')
+    model_path = os.path.join(RESULTS_DIR, f"{name.replace(' ', '_').lower()}_model.joblib")
+    joblib.dump(model, model_path)
+    print(f"Saved {name} model to {model_path}")
 
 print("\nModel training, evaluation, and feature importance analysis complete!")
+print(f"All results saved to {RESULTS_DIR}")

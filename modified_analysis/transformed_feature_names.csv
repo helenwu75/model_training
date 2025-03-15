@@ -1,0 +1,39 @@
+feature
+volumeNum
+event_commentCount
+price_volatility
+price_range
+final_week_momentum
+price_fluctuations
+market_duration_days
+trading_frequency
+buy_sell_ratio
+trading_continuity
+late_stage_participation
+volume_acceleration
+unique_traders_count
+trader_to_trade_ratio
+two_way_traders_ratio
+trader_concentration
+new_trader_influx
+comment_per_vol
+comment_per_trader
+event_country_Brazil
+event_country_Canada
+event_country_Eastern Europe
+event_country_Germany
+event_country_Ireland
+event_country_Latin America
+event_country_Other Countries
+event_country_United Kingdom
+event_country_United States
+event_electionType_Balance of Power
+event_electionType_Other Election
+event_electionType_Parliamentary
+event_electionType_Presidential
+event_electionType_Presidential Detail
+event_electionType_Presidential Primary
+event_electionType_Prime Minister
+event_electionType_Regional Election
+event_electionType_Senate
+event_electionType_Vice Presidential
