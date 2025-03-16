@@ -1,45 +1,18 @@
-# Data directories and large files
-data/
-*.csv
-*.parquet
-*.npy
-*.npz
-*.joblib
-*.pkl
-*.h5
-*.hdf5
-*.feather
-*.png
+# Environment variables
+.env
 
-# Modified analysis directory (contains preprocessed data)
-modified_analysis/
-
-# Feature importance results (can be regenerated)
-feature_importance_results/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
-
-# Python cache files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.manifest
-*.spec
-.eggs/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Distribution / packaging
 build/
 develop-eggs/
 dist/
 downloads/
 eggs/
+.eggs/
 lib/
 lib64/
 parts/
@@ -50,30 +23,33 @@ wheels/
 .installed.cfg
 *.egg
 
-# Log files
-*.log
-logs/
-.history/
-
-# Environment files
-.env
-.venv
-env/
+# Virtual Environment
+.venv/
 venv/
 ENV/
-env.bak/
-venv.bak/
-.python-version
+env/
 
-# IDE specific files
+# Data directories
+modified_analysis/
+test_scripts/
+missing_tokens/
+
+# Output directories
+model_results/
+feature_importance_results/
+prediction_error_analysis/
+actionable_insights/
+descriptive_stats/
+feature_relationships/
+combined_analysis/
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
-.spyderproject
-.spyproject
-.ropeproject
+
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -82,17 +58,27 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-coverage.xml
-*.cover
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
 
-# Exclude all CSVs
+# Data files
 *.csv
+*.parquet
+*.npy
+*.npz
+*.joblib
+*.pkl
+*.json
 
-# But include these specific files
+# Images and plots
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+
+# Exceptions - files to include despite above patterns
+!requirements.txt
 !transformed_feature_names.csv
 !feature_metadata.csv
